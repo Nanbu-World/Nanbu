@@ -1,32 +1,27 @@
-# Lima 构建 VM 配置（宿主机是 Ubuntu 也能跑，Lima 用 QEMU 提供 Arch 环境）
-# 用法: limactl start ./lima/build.yaml --name=nanbu-build
-# 然后: limactl shell nanbu-build   # 进 VM，在 /nanbu-linux 下 sudo ./build.sh
-
-vmType: qemu
-arch: x86_64
+# Nanbu Linux —— Lima VM 参考配置（可选）
+# 用法: limactl start ./lima/build.yaml
+# 说明: Arch 下安装器的用法已由 Calamares 改为 archinstall。
 
 images:
-- location: "https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-cloudimg.qcow2"
-  arch: "x86_64"
-
-mounts:
-- location: "/home/xiangjian520/project/VM/nanbu-linux"
-  mountPoint: "/nanbu-linux"
-  writable: true
-
-cpus: 4
-memory: "8GiB"
-disk: "40GiB"
+  - location: "https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-cloudimg.qcow2"
+    arch: "x86_64"
 
 provision:
-- mode: system
-  script: |
-    #!/bin/bash
-    set -eux
-    pacman -Sy --noconfirm archiso calamares grub syslinux squashfs-tools \
-      edk2-ovmf mtools dosfstools libisoburn
+  - mode: system
+    script: |
+      #!/usr/bin/env bash
+      set -euxo pipefail
+      pacman -Sy --noconfirm
+      pacman -S --noconfirm archinstall
+      archinstall --config /dev/null --silent || true
 
-ssh:
-  localPort: 60022
+probes:
+  - script: |
+      #!/usr/bin/env bash
+      set -ex
+      command -v archinstall >/dev/null 2>&1
 
-# 提示：若镜像 URL 失效，改用 `limactl start template://archlinux` 效果相同。
+mountType: 9p
+mounts:
+  - location: "~"
+    writable: false

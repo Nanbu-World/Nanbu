@@ -1,60 +1,17 @@
 # ============================================================
-# Nanbu Linux —— 追加进 ISO（同时成为被安装系统的基础包）
-# 稳定取向：内核用 LTS，桌面只提供成熟稳定的选择
+# Nanbu Linux —— 追加进 live ISO 的包（面向稳定）
+# releng 已带 vim/nano/man-db/man-pages/reflector/网络工具/linux 内核等，
+# 这里只补安装器与少量便利项。
 # ============================================================
 
-# --- 内核：长期支持版（稳定） ---
-linux-lts
-linux-lts-headers
+# 官方安装器（仍在维护，稳定）
+archinstall
 
-# --- live 图形会话（X + Openbox + LightDM）---
-xorg-server
-xorg-xinit
-xorg-xrandr
-xorg-xrdb
-xorg-xkbcomp
-xorg-xset
-xorg-xdpyinfo
-xf86-video-vesa
-xf86-video-fbdev
-xf86-video-qxl
-xf86-video-vmware
-xf86-input-libinput
-xterm
-openbox
-lightdm
-lightdm-gtk-greeter
-accountsservice
-
-# --- 字体（含 CJK，桌面环境中文不乱码） ---
-ttf-dejavu
-ttf-liberation
-noto-fonts
-noto-fonts-cjk
-noto-fonts-emoji
-
-# --- 安装器 ---
-calamares
-
-# --- 网络（live 联网 + netinstall 选包需要） ---
-networkmanager
-wpa_supplicant
-dhcpcd
-ipp-usb
-bluez
-bluez-utils
-
-# --- 基础系统组件 ---
-sudo
-bash-completion
+# shell 与工具
 zsh
 zsh-completions
+bash-completion
 git
-base-devel
 
-# --- 常用工具（稳定通用） ---
-nano
-vim
-man-db
-man-pages
-reflector
+# TTY 更清晰的字体
+terminus-font
