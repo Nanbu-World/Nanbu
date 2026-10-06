@@ -1,0 +1,38 @@
+# Nanbu Linux —— 桌面环境组（netinstall.yaml）
+# 安装时请只勾选一项；不勾选 = 纯基础系统（无桌面）。
+# 注意：顶层组默认 selected:true，这里全部显式置 false，避免全选。
+---
+- name: "GNOME"
+  description: "GNOME 桌面（GDM 登录）"
+  selected: false
+  packages:
+    - gnome
+    - gnome-tweaks
+    - gdm
+    - xdg-user-dirs
+
+- name: "KDE Plasma"
+  description: "KDE Plasma 桌面（SDDM 登录）"
+  selected: false
+  packages:
+    - plasma
+    - plasma-nm
+    - sddm
+    - konsole
+    - dolphin
+    - kate
+    - ark
+    - gwenview
+    - spectacle
+    - xdg-user-dirs
+
+- name: "Xfce"
+  description: "轻量 Xfce 桌面（LightDM 登录）"
+  selected: false
+  packages:
+    - xfce4
+    - xfce4-goodies
+    - lightdm
+    - lightdm-gtk-greeter
+    - xdg-user-dirs
+    - network-manager-applet

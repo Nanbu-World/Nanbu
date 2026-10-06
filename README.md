@@ -1,417 +1,100 @@
-# Nanbu（nanbu）
+# Nanbu Linux
 
-> 一个基于 Arch Linux 的现代、滚动更新、开箱即用的 Linux 发行版。
-
-[![Status](https://img.shields.io/badge/status-alpha-orange)](https://github.com/nanbu-linux/nanbu/releases)
-[![Base](https://img.shields.io/badge/base-Arch%20Linux-1793D1?logo=archlinux)](https://archlinux.org/)
-[![License](https://img.shields.io/badge/license-GPL--3.0-blue)](./LICENSE)
-[![Build ISO](https://github.com/nanbu-linux/nanbu/actions/workflows/build.yml/badge.svg)](https://github.com/nanbu-linux/nanbu/actions)
+面向**稳定**的 Arch 系发行版构建工程。默认用户 `nanbu`，安装到磁盘的引导器用 **GRUB**，安装过程中可选桌面环境（GNOME / KDE Plasma / Xfce / 最小化）。目标运行环境：Lima VM（宿主是 Ubuntu 也没关系，靠 Lima 提供 Arch 构建环境）。
 
 ---
 
-## 简介
+## 目录结构
 
-`Nanbu` 是一个基于 **Arch Linux** 的独立 Linux 发行版，继承 Arch 的简洁、滚动更新、PKGBUILD 与 AUR 生态，同时提供：
-
-- 预配置桌面环境
-- 更友好的安装体验
-- 中文与常用软件开箱即用
-- 精选驱动、内核与硬件支持
-- 自研配置工具与软件仓库
-
-> 当前处于早期开发阶段，配置、包名、ISO 名称和功能可能随时变化。
-
----
-
-## 特性
-
-- **滚动更新**：跟随 Arch Linux 仓库滚动更新。
-- **多种桌面**：计划支持 KDE Plasma、GNOME、Hyprland、XFCE 等。
-- **图形安装器**：集成 Calamares，提供简单直观的安装流程。
-- **中文优化**：预装中文字体、输入法、时区与镜像配置。
-- **AUR 支持**：内置 `paru` / `yay` 等 AUR 助手。
-- **自研工具**：
-  - `nanbu-welcome`：欢迎与初始配置工具
-  - `nanbu-mirror`：镜像站测速与切换
-  - `nanbu-update`：系统更新封装
-- **可定制 ISO**：基于 `archiso`，方便二次开发与构建。
-- **自建仓库**：提供 `nanbu` 专属软件仓库。
-
----
-
-## 项目状态
-
-当前状态：**Alpha / 开发中**
-
-- [x] 基础 archiso 配置
-- [x] 可启动 Live ISO
-- [ ] Calamares 安装器完整集成
-- [ ] 自建软件仓库
-- [ ] Secure Boot 支持
-- [ ] 官方镜像站
-- [ ] 自动构建与发布流程
-
----
-
-## 截图
-
-> 待补充。
-
-```text
-docs/screenshots/desktop.png
-docs/screenshots/installer.png
+```
+nanbu-linux/
+├── build.sh                  # 主构建脚本（在 Arch 内以 root 运行）
+├── overlay/                  # 叠放到 archiso releng 配置上的定制增量
+│   ├── profiledef.sh         # ISO 元数据 + 引导模式（GRUB/syslinux）
+│   ├── pacman.conf           # 构建源（稳定源 + 本地仓库占位）
+│   ├── packages.append       # 追加进 ISO 的包（会被安装到最终系统）
+│   ├── airootfs/             # 打进 live/安装后系统的根文件系统定制
+│   │   ├── root/customize_airootfs.sh   # chroot 阶段：建用户/开服务/自动登录
+│   │   ├── etc/…             # locale、hostname、os-release、lightdm、openbox…宿主
+│   │   └── usr/local/bin/nanbu-postinstall.sh  # 安装结束后的收尾脚本
+│   └── calamares/            # 安装器覆盖：settings、netinstall(桌面选择)、shellprocess
+└── lima/build.yaml           # Lima 构建 VM 配置（可选）
 ```
 
----
+关键文件说明：
 
-## 下载
-
-| 版本 | 架构 | 桌面 | 下载 | SHA256 |
-| --- | --- | --- | --- | --- |
-| 0.1.0-alpha | x86_64 | KDE Plasma | [下载](https://github.com/nanbu-linux/nanbu/releases/download/v0.1.0-alpha/nanbu-0.1.0-alpha-x86_64.iso) | `<sha256>` |
-
-校验 ISO：
-
-```bash
-sha256sum nanbu-0.1.0-alpha-x86_64.iso
-```
+- **`profiledef.sh`** —— `iso_name`、GRUB/syslinux 引导、initramfs 参数等。
+- **`packages.append`** —— 稳定取向的包集：`linux-lts`、Xorg + Openbox + LightDM（live 会话）、Calamares、NetworkManager、CJK 字体等。这些包既是 live 环境也是被安装系统的基础。
+- **`customize_airootfs.sh`** —— 创建 `nanbu`（`wheel` 组、sudo），开启 NetworkManager / LightDM，live 会话自动登录并自动拉起 Calamares。
+- **`nanbu-postinstall.sh`** —— 安装最后执行：把 live 的 lightdm+openbox 交接给用户选中的真实 DM（gdm/sddm/lightdm），给 `nanbu` 开启自动登录，卸载 calamares/openbox 等安装器专用组件，重建 grub 配置。
+- **`overlay/calamares/`** —— `settings.conf`（流程）、`netinstall.yaml`（桌面三选一）、`shellprocess.conf`（跑收尾脚本）、branding。
 
 ---
 
-## 快速开始
+## 一键构建（在 Arch 环境里）
 
-### 系统要求
-
-- x86_64 处理器
-- 至少 4 GB 内存，推荐 8 GB
-- 至少 20 GB 磁盘空间
-- UEFI 或 Legacy BIOS
-
-### 制作启动盘
-
-Linux：
+构建 **必须** 在 Arch 系统内运行（`mkarchiso` 依赖 Arch 工具链）。你的宿主是 Ubuntu，所以第一步用 Lima 起一个 Arch 虚拟机：
 
 ```bash
-sudo dd if=nanbu-0.1.0-alpha-x86_64.iso of=/dev/sdX bs=4M status=progress oflag=sync
+# 1) 起一个 Arch 构建 VM（Lima 模板，直接可跑）
+limactl start --name=nanbu-build template://archlinux
+
+# 2) 把工程挂进去，shell 进 VM
+limactl shell nanbu-build
 ```
 
-Windows：
+或者用仓库里现成的 [lima/build.yaml](lima/build.yaml)（带好了挂载点）。
 
-推荐使用 [Rufus](https://rufus.ie/) 或 [Ventoy](https://www.ventoy.net/)。
-
-### 安装
-
-1. 从 U 盘启动。
-2. 进入 Live 环境。
-3. 启动安装器：
+VM 内，在工程目录下：
 
 ```bash
-sudo calamares
-```
-
-4. 按提示完成分区、用户、桌面环境和软件选择。
-5. 安装完成后重启并移除 U 盘。
-
----
-
-## 从源码构建 ISO
-
-### 环境要求
-
-- Arch Linux 或兼容环境
-- `base-devel`
-- `archiso`
-- 至少 20 GB 可用磁盘
-- 需要 root 权限运行 `mkarchiso`
-
-### 安装依赖
-
-```bash
-sudo pacman -S --needed base-devel git archiso qemu-full
-```
-
-### 获取源码
-
-```bash
-git clone https://github.com/nanbu-linux/nanbu.git
-cd nanbu
-```
-
-### 构建 ISO
-
-```bash
+sudo pacman -Sy --noconfirm archiso calamares grub syslinux squashfs-tools
 sudo ./build.sh
 ```
 
-或直接使用 `mkarchiso`：
+产物在 `out/nanbu-linux-*.iso`。
+
+`build.sh` 做了什么：复制 `releng` 配置 → 追加包列表 → 覆盖 `profiledef.sh`/`pacman.conf`/`customize_airootfs.sh` → 叠加 `airootfs` → 从本机已装的 Calamares 包继承模块与 branding 并叠加定制 → 跑 `mkarchiso`。
+
+---
+
+## 测试 ISO（装进一个磁盘镜像，喂给 Lima）
+
+Lima 默认直接引导内核+initrd，不引导 CD 映像；所以用 QEMU 挂 CD 装到一块空白 qcow2，再把装好的磁盘给 Lima 用：
 
 ```bash
-sudo mkarchiso -v -w work -o out archiso
-```
+# 建一块空盘
+qemu-img create -f qcow2 nanbu-root.qcow2 32G
 
-构建完成后，ISO 位于：
-
-```text
-out/nanbu-*.iso
-```
-
-### 本地测试
-
-```bash
+# 挂 ISO 启动，走安装
 qemu-system-x86_64 \
-  -enable-kvm \
-  -m 4096 \
-  -cdrom out/nanbu-*.iso \
+  -enable-kvm -m 4G -smp 4 \
+  -cdrom out/nanbu-linux-*.iso \
+  -drive file=nanbu-root.qcow2,format=qcow2 \
   -boot d
 ```
 
-如果没有 KVM，可移除 `-enable-kvm`，但速度会较慢。
+安装完成后关机，把 `nanbu-root.qcow2` 交给 Lima（或用同样的 qemu 直接启动验证引导）。
 
 ---
 
-## 项目结构
+## 默认凭据（务必修改后再对外分发）
 
-```text
-.
-├── archiso/                 # archiso profile
-│   ├── airootfs/            # Live 系统根文件覆盖
-│   ├── efiboot/             # UEFI 启动配置
-│   ├── syslinux/            # BIOS 启动配置
-│   ├── grub/                # GRUB 配置
-│   ├── packages.x86_64      # Live 环境软件包列表
-│   ├── pacman.conf          # pacman 配置
-│   └── profiledef.sh        # ISO 元信息
-├── calamares/               # 安装器配置与品牌资源
-├── packages/                # 自研软件包 PKGBUILD
-├── scripts/                 # 构建、发布、辅助脚本
-├── build.sh                 # ISO 构建入口
-├── LICENSE
-└── README.md
-```
+| 项 | 值 |
+|---|---|
+| 用户 | `nanbu` |
+| 密码 | `nanbu`（在 `customize_airootfs.sh` 里 `echo 'nanbu:nanbu' \| chpasswd`） |
+| root | 已锁定（`passwd -l root`），通过 `nanbu` + sudo 提权 |
+| sudo | `wheel` 组已启用（`/etc/sudoers.d/10-wheel`） |
+| 主机名 | `nanbu` |
 
 ---
 
-## 自定义指南
-
-### ISO 信息
-
-编辑 `archiso/profiledef.sh`：
-
-```bash
-iso_name="nanbu"
-iso_label="NANBU_$(date +%Y%m)"
-iso_publisher="Nanbu <https://nanbu.example.com>"
-iso_application="Nanbu Live/Install ISO"
-iso_version="$(date +%Y.%m.%d)"
-install_dir="arch"
-```
-
-### 软件包列表
-
-编辑 `archiso/packages.x86_64`，加入 Live 环境和安装目标需要的包：
-
-```text
-base
-linux
-linux-firmware
-networkmanager
-sudo
-vim
-git
-calamares
-```
-
-### Live 系统覆盖文件
-
-将文件放入 `archiso/airootfs/`，会覆盖到 Live 系统中。例如：
-
-```text
-archiso/airootfs/etc/skel/.config/
-archiso/airootfs/etc/NetworkManager/conf.d/
-archiso/airootfs/root/
-```
-
-### 安装器配置
-
-`calamares/` 中通常包含：
-
-```text
-calamares/
-├── branding/
-├── modules/
-├── settings.conf
-└── welcome.conf
-```
-
-你可以在这里修改品牌、分区方案、用户创建、包选择等。
-
-### 自研软件包
-
-将 PKGBUILD 放入 `packages/`，例如：
-
-```text
-packages/nanbu-welcome/PKGBUILD
-packages/nanbu-mirror/PKGBUILD
-```
-
-构建：
-
-```bash
-cd packages/nanbu-welcome
-makepkg -si
-```
-
----
-
-## 自建软件仓库
-
-构建软件包后，生成仓库数据库：
-
-```bash
-cd repo/x86_64
-repo-add nanbu.db.tar.zst *.pkg.tar.zst
-```
-
-在 `/etc/pacman.conf` 中添加：
-
-```ini
-[nanbu]
-SigLevel = Required DatabaseOptional
-Server = https://repo.example.com/nanbu/$arch
-```
-
-生产环境建议启用包签名，不要长期使用 `TrustAll`。
-
----
-
-## 开发指南
-
-### 分支策略
-
-- `main`：稳定分支
-- `dev`：开发分支
-- `feat/*`：新功能
-- `fix/*`：修复问题
-
-### 提交规范
-
-建议使用 Conventional Commits：
-
-```text
-feat: 添加 Calamares 中文配置
-fix: 修复 Live 环境网络服务未启动
-docs: 更新构建说明
-```
-
-### 本地测试清单
-
-提交 PR 前请确认：
-
-- [ ] ISO 可以成功构建
-- [ ] Live 环境可以启动
-- [ ] 网络可用
-- [ ] 安装器可以完成安装
-- [ ] 安装后系统可以正常启动
-- [ ] 中文显示与输入法正常
-
----
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request。
-
-1. Fork 本仓库
-2. 创建分支：`git checkout -b feat/your-feature`
-3. 提交修改：`git commit -m "feat: ..."`
-4. 推送分支：`git push origin feat/your-feature`
-5. 发起 Pull Request
-
-请尽量附上：
-
-- 问题描述
-- 复现步骤
-- 日志或截图
-- 测试环境
-
----
-
-## 常见问题
-
-### Nanbu 和 Arch Linux 有什么区别？
-
-`Nanbu` 基于 Arch Linux，但提供预配置桌面、安装器、中文优化、自研工具和自建仓库。它仍是独立项目，不是 Arch Linux 官方发行版。
-
-### 可以访问 Arch 官方仓库和 AUR 吗？
-
-可以。系统默认使用 Arch 官方仓库，并支持 AUR。
-
-### 更新方式是什么？
-
-```bash
-sudo pacman -Syu
-```
-
-或使用封装工具：
-
-```bash
-nanbu-update
-```
-
-### 支持 Secure Boot 吗？
-
-目前：开发中。
-
-### 可以用于生产环境吗？
-
-当前处于 Alpha 阶段，不建议用于关键生产环境。请先备份数据。
-
----
-
-## 路线图
-
-- [ ] 发布首个可安装 ISO
-- [ ] 完成 Calamares 品牌与中文配置
-- [ ] 建立自建仓库
-- [ ] 支持 Secure Boot
-- [ ] 提供多桌面版本
-- [ ] 建立镜像站
-- [ ] 自动构建与发布
-
----
-
-## 社区与支持
-
-- 文档：https://nanbu.example.com/docs
-- 论坛：<论坛地址>
-- Matrix：<Matrix 地址>
-- Discord：<Discord 地址>
-- 问题反馈：https://github.com/nanbu-linux/nanbu/issues
-- 安全漏洞：security@nanbu.example.com
-
----
-
-## 许可证
-
-除非另有说明，本项目源代码采用 **GPL-3.0** 许可证。
-
-各软件包、图标、品牌资源和第三方组件遵循其各自许可证。
-
----
-
-## 致谢
-
-感谢以下项目与社区：
-
-- [Arch Linux](https://archlinux.org/)
-- [archiso](https://gitlab.archlinux.org/archlinux/archiso)
-- [Calamares](https://calamares.io/)
-- [AUR](https://aur.archlinux.org/)
-- 所有上游开发者与贡献者
-
----
-
-## 免责声明
-
-`Nanbu` 是独立项目，与 Arch Linux、archiso、Calamares 等项目无官方附属关系。
-
-“Arch Linux” 是其所有者的商标。本项目仅说明其基于 Arch Linux 构建，不暗示任何官方认可或关联。
+## 版本差异注意（重要）
+
+- 本工程的 `settings.conf` 按 Calamares 3.3.x 的模块名编写（含 `sources-yaml` 等）。**`build.sh` 会优先从你机器上 `/usr/share/calamares/` 继承模块和 branding**，所以版本不对时不会整个散架；若 `mkarchiso` 后 `calamares` 报某个模块缺失，用下面命令对照改 `overlay/calamares/settings.conf`：
+  ```bash
+  find /usr/share/calamares/modules -maxdepth 1 -mindepth 1 -printf '%f\n' | sort
+  ```
+- 桌面选择用 Calamares 的 `netinstall` 模块（复选框）。请在安装界面**勾选且只勾选一个桌面组**；勾多个时 `nanbu-postinstall.sh` 只启用检测到的第一个 DM。
+- 装完的自动登录、默认会话名（`plasma`）如需调整，改 `overlay/airootfs/usr/local/bin/nanbu-postinstall.sh`。
