@@ -1,10 +1,12 @@
 # ============================================================
 # Nanbu Linux —— 追加进 live ISO 的包（面向稳定）
-# releng 已带 vim/nano/man-db/man-pages/reflector/网络工具/linux 内核等，
-# 这里只补安装器与少量便利项。
+# releng 提供基础救援工具；Live ISO 使用官方 linux-lts 内核。
 # ============================================================
 
-# 官方安装器（仍在维护，稳定）
+# 官方 LTS 内核（Live ISO 启动内核）
+linux-lts
+
+# 官方安装器（仍在维护）
 archinstall
 
 # shell 与工具
